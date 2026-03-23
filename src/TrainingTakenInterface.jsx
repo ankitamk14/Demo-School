@@ -21,15 +21,35 @@ import {
   Typography,
   Avatar,
   Tooltip,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
-import SchoolIcon from "@mui/icons-material/School";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import EventIcon from "@mui/icons-material/Event";
-import FactCheckIcon from "@mui/icons-material/FactCheck";
-import GroupsIcon from "@mui/icons-material/Groups";
-import PersonIcon from "@mui/icons-material/Person";
+import {
+  School as SchoolIcon,
+  MenuBook as MenuBookIcon,
+  Event as EventIcon,
+  FactCheck as FactCheckIcon,
+  Groups as GroupsIcon,
+  Person as PersonIcon,
+  Edit as EditIcon,
+  Add as AddIcon,
+} from "@mui/icons-material";
 
+// Constants
 const sessions = ["2025-26", "2026-27"];
+const coursesList = ["Python", "Bash", "Linux", "Javascript", "Blender", "Git", "Advanced C"];
+const invigilatorsList = [
+  "Devendra Kumar",
+  "Shreya Yadav",
+  "Neha Verma",
+  "Aditya Singh",
+  "Naman Shah",
+];
 
 const statusConfig = {
   Pending: { label: "Pending", color: "warning" },
@@ -44,7 +64,8 @@ const classColors = {
   "8-C": { bg: "#fff3e0", border: "#ef6c00", chipBg: "#ffe0b2", text: "#e65100" },
 };
 
-const trainingData = {
+// Initial data with unique IDs for each training
+const initialTrainingData = {
   "2025-26": [
     {
       batch: "Batch-6A-Foundation",
@@ -54,6 +75,7 @@ const trainingData = {
       totalStudents: 38,
       trainings: [
         {
+          id: 1,
           course: "Python",
           startDate: "2026-04-05",
           endDate: "2026-04-20",
@@ -64,6 +86,7 @@ const trainingData = {
           testAttendanceMarked: "37/38",
         },
         {
+          id: 2,
           course: "Bash",
           startDate: "2026-05-01",
           endDate: "2026-05-14",
@@ -74,6 +97,7 @@ const trainingData = {
           testAttendanceMarked: "0/38",
         },
         {
+          id: 3,
           course: "Linux",
           startDate: "2026-05-20",
           endDate: "2026-06-05",
@@ -93,6 +117,7 @@ const trainingData = {
       totalStudents: 41,
       trainings: [
         {
+          id: 4,
           course: "JavaScript",
           startDate: "2026-04-07",
           endDate: "2026-04-25",
@@ -103,6 +128,7 @@ const trainingData = {
           testAttendanceMarked: "39/41",
         },
         {
+          id: 5,
           course: "Bash",
           startDate: "2026-05-03",
           endDate: "2026-05-17",
@@ -113,6 +139,7 @@ const trainingData = {
           testAttendanceMarked: "0/41",
         },
         {
+          id: 6,
           course: "Linux",
           startDate: "2026-05-25",
           endDate: "2026-06-09",
@@ -132,6 +159,7 @@ const trainingData = {
       totalStudents: 35,
       trainings: [
         {
+          id: 7,
           course: "Git",
           startDate: "2026-04-10",
           endDate: "2026-04-21",
@@ -142,6 +170,7 @@ const trainingData = {
           testAttendanceMarked: "34/35",
         },
         {
+          id: 8,
           course: "Blender",
           startDate: "2026-05-02",
           endDate: "2026-05-22",
@@ -152,6 +181,7 @@ const trainingData = {
           testAttendanceMarked: "11/35",
         },
         {
+          id: 9,
           course: "Linux",
           startDate: "2026-05-28",
           endDate: "2026-06-11",
@@ -171,6 +201,7 @@ const trainingData = {
       totalStudents: 29,
       trainings: [
         {
+          id: 10,
           course: "Advanced C",
           startDate: "2026-04-12",
           endDate: "2026-05-05",
@@ -274,6 +305,96 @@ function TrainingSummaryCard({ rows }) {
 
 export default function TrainingTakenInterface() {
   const [selectedSession, setSelectedSession] = useState("2025-26");
+  const [trainingData, setTrainingData] = useState(initialTrainingData);
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingBatch, setEditingBatch] = useState(null); // batch object where training is added/edited
+  const [editingTraining, setEditingTraining] = useState(null); // training object for edit mode (null for add)
+  const [formData, setFormData] = useState({
+    course: "",
+    startDate: "",
+    endDate: "",
+    testDate: "",
+    invigilator: "",
+  });
+
+  const handleOpenAddModal = (batch) => {
+    setEditingBatch(batch);
+    setEditingTraining(null);
+    setFormData({
+      course: "",
+      startDate: "",
+      endDate: "",
+      testDate: "",
+      invigilator: "",
+    });
+    setModalOpen(true);
+  };
+
+  const handleOpenEditModal = (batch, training) => {
+    setEditingBatch(batch);
+    setEditingTraining(training);
+    setFormData({
+      course: training.course,
+      startDate: training.startDate,
+      endDate: training.endDate,
+      testDate: training.testDate,
+      invigilator: training.invigilator,
+    });
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setEditingBatch(null);
+    setEditingTraining(null);
+  };
+
+  const handleFormChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+  };
+
+  const handleSaveTraining = () => {
+    if (!editingBatch) return;
+
+    const newTraining = {
+      id: editingTraining ? editingTraining.id : Date.now(),
+      course: formData.course,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      testDate: formData.testDate,
+      invigilator: formData.invigilator,
+      // Default values for new trainings
+      status: "Pending",
+      testStatus: "Pending",
+      trainingAttendanceMarked: `0/${editingBatch.totalStudents}`,
+      testAttendanceMarked: `0/${editingBatch.totalStudents}`,
+    };
+
+    setTrainingData((prev) => {
+      // Find the session and batch to update
+      const sessionData = prev[selectedSession];
+      const updatedBatches = sessionData.map((batch) => {
+        if (batch.batch === editingBatch.batch) {
+          if (editingTraining) {
+            // Edit existing training
+            const updatedTrainings = batch.trainings.map((t) =>
+              t.id === editingTraining.id ? newTraining : t
+            );
+            return { ...batch, trainings: updatedTrainings };
+          } else {
+            // Add new training
+            return { ...batch, trainings: [...batch.trainings, newTraining] };
+          }
+        }
+        return batch;
+      });
+      return { ...prev, [selectedSession]: updatedBatches };
+    });
+
+    handleCloseModal();
+  };
 
   const selectedRows = trainingData[selectedSession] || [];
 
@@ -383,7 +504,7 @@ export default function TrainingTakenInterface() {
                           <Grid item xs={12} md={5}>
                             <Stack direction="row" spacing={1} justifyContent={{ xs: "flex-start", md: "flex-end" }} flexWrap="wrap" useFlexGap>
                               {row.trainings.map((training) => (
-                                <Tooltip key={training.course} title={`${training.course} • ${training.status}`}>
+                                <Tooltip key={training.id} title={`${training.course} • ${training.status}`}>
                                   <Chip
                                     icon={<MenuBookIcon />}
                                     label={training.course}
@@ -396,6 +517,14 @@ export default function TrainingTakenInterface() {
                                   />
                                 </Tooltip>
                               ))}
+                              <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleOpenAddModal(row)}
+                              >
+                                Add Training
+                              </Button>
                             </Stack>
                           </Grid>
                         </Grid>
@@ -415,11 +544,12 @@ export default function TrainingTakenInterface() {
                               <TableCell><strong>Test Status</strong></TableCell>
                               <TableCell><strong>Training Attendance</strong></TableCell>
                               <TableCell><strong>Test Attendance</strong></TableCell>
+                              <TableCell><strong>Actions</strong></TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {row.trainings.map((training) => (
-                              <TableRow key={`${row.batch}-${training.course}`} hover>
+                              <TableRow key={training.id} hover>
                                 <TableCell>
                                   <Typography fontWeight={700}>{training.course}</Typography>
                                 </TableCell>
@@ -434,6 +564,15 @@ export default function TrainingTakenInterface() {
                                 </TableCell>
                                 <TableCell>{training.trainingAttendanceMarked}</TableCell>
                                 <TableCell>{training.testAttendanceMarked}</TableCell>
+                                <TableCell>
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={() => handleOpenEditModal(row, training)}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -464,6 +603,80 @@ export default function TrainingTakenInterface() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add/Edit Training Modal */}
+      <Dialog open={modalOpen} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingTraining ? "Edit Training" : "Add New Training"}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              select
+              label="Course"
+              value={formData.course}
+              onChange={handleFormChange("course")}
+              fullWidth
+              required
+            >
+              {coursesList.map((course) => (
+                <MenuItem key={course} value={course}>
+                  {course}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={formData.startDate}
+              onChange={handleFormChange("startDate")}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              value={formData.endDate}
+              onChange={handleFormChange("endDate")}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              label="Test Date"
+              type="date"
+              value={formData.testDate}
+              onChange={handleFormChange("testDate")}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              select
+              label="Invigilator"
+              value={formData.invigilator}
+              onChange={handleFormChange("invigilator")}
+              fullWidth
+              required
+            >
+              {invigilatorsList.map((inv) => (
+                <MenuItem key={inv} value={inv}>
+                  {inv}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal}>Cancel</Button>
+          <Button
+            onClick={handleSaveTraining}
+            variant="contained"
+            disabled={!formData.course || !formData.startDate || !formData.endDate || !formData.testDate || !formData.invigilator}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
