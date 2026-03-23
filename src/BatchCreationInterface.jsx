@@ -762,7 +762,7 @@ const handleDrawerSave = () => {
   SelectProps={{ displayEmpty: true }}
 >
   <MenuItem value="">
-    <em>Select Course</em>
+    <em>Course</em>
   </MenuItem>
 
   {courses.map((c) => (
@@ -785,7 +785,7 @@ const handleDrawerSave = () => {
   SelectProps={{ displayEmpty: true }}
 >
   <MenuItem value="">
-    <em>Select Invigilator</em>
+    <em>Invigilator</em>
   </MenuItem>
 
   {invigilators.map((inv) => (
