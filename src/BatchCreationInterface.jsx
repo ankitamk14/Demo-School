@@ -45,7 +45,6 @@ import {
   School,
   SnippetFolder,
   TableChart,
-  Topic,
   MenuBook,
   Event,
   FactCheck,
@@ -56,27 +55,32 @@ import {
   PersonAdd,
   Email,
   Phone,
+  Close,
+  Save,
+  Add,
+  Edit,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
+import Drawer from "@mui/material/Drawer";
 
 // ---------- Constants ----------
 const sessions = ["2025-26", "2026-27", "2027-28"];
 const classes = ["6", "7", "8", "9", "10"];
 const sections = ["A", "B", "C", "D"];
 const teachers = [
-  "Ankita Sharma",
-  "Rohit Mehta",
-  "Pooja Nair",
-  "Vivek Rao",
-  "Sonal Gupta",
+  "Ankita",
+  "Rohit",
+  "Pooja",
+  "Vivek",
+  "Sonal",
 ];
 const courses = ["Python", "Bash", "Linux", "Javascript", "Blender", "Git", "Advanced C"];
 const invigilators = [
-  "Devendra Kumar",
-  "Shreya Yadav",
-  "Neha Verma",
-  "Aditya Singh",
-  "Naman Shah",
+  "Devendra",
+  "Shreya",
+  "Neha",
+  "Aditya",
+  "Naman",
 ];
 
 const statusConfig = {
@@ -113,7 +117,7 @@ const initialTrainingData = {
           testStatus: "Completed",
           trainingAttendanceMarked: "38/38",
           testAttendanceMarked: "37/38",
-          invigilator: "Devendra Kumar",
+          invigilator: "Devendra",
         },
         {
           id: 2,
@@ -125,7 +129,7 @@ const initialTrainingData = {
           testStatus: "Pending",
           trainingAttendanceMarked: "31/38",
           testAttendanceMarked: "0/38",
-          invigilator: "Shreya Yadav",
+          invigilator: "Shreya",
         },
       ],
     },
@@ -147,7 +151,7 @@ const initialTrainingData = {
           testStatus: "Completed",
           trainingAttendanceMarked: "40/41",
           testAttendanceMarked: "39/41",
-          invigilator: "Neha Verma",
+          invigilator: "Neha",
         },
       ],
     },
@@ -164,7 +168,7 @@ const initialTrainingData = {
   "2026-27": [],
 };
 
-// ---------- CSV error mock data ----------
+// ---------- CSV error mock data (kept for demonstration) ----------
 const csvErrorRows = [
   {
     rowNumber: 4,
@@ -293,15 +297,24 @@ export default function BatchManagementDashboard() {
   // ---------- State for creation form ----------
   const [selectedClass, setSelectedClass] = useState("8");
   const [section, setSection] = useState("A");
-  const [classTeacher, setClassTeacher] = useState("Ankita Sharma");
+  const [classTeacher, setClassTeacher] = useState("Ankita");
   const [fileName, setFileName] = useState("");
-  const [trainingRows, setTrainingRows] = useState([]);
   const [showCsvErrors, setShowCsvErrors] = useState(false);
 
-  // States for student count (CSV + individual entries)
-  const [csvStudentCount, setCsvStudentCount] = useState(0);
+  // Single training fields
+  const [trainingCourse, setTrainingCourse] = useState("");
+  const [trainingInvigilator, setTrainingInvigilator] = useState("");
+  const [trainingStartDate, setTrainingStartDate] = useState("");
+  const [trainingEndDate, setTrainingEndDate] = useState("");
+  const [trainingTestDate, setTrainingTestDate] = useState("");
+
+  // CSV data state
+  const [csvData, setCsvData] = useState([]);
+  const [csvHeaders, setCsvHeaders] = useState([]);
+  const [csvDrawerOpen, setCsvDrawerOpen] = useState(false);
   const [individualEntries, setIndividualEntries] = useState([]);
   const [individualDialogOpen, setIndividualDialogOpen] = useState(false);
+  const [editDrawerData, setEditDrawerData] = useState(null);
 
   // Individual student form fields
   const [newStudentName, setNewStudentName] = useState("");
@@ -310,6 +323,7 @@ export default function BatchManagementDashboard() {
   const [newStudentClass, setNewStudentClass] = useState(selectedClass);
   const [newStudentSection, setNewStudentSection] = useState(section);
   const [newStudentClassTeacher, setNewStudentClassTeacher] = useState(classTeacher);
+  
 
   // ---------- State for Add/Edit Training modal ----------
   const [modalOpen, setModalOpen] = useState(false);
@@ -338,41 +352,65 @@ export default function BatchManagementDashboard() {
     setNewStudentClassTeacher(classTeacher);
   }, [selectedClass, section, classTeacher]);
 
-  // Compute total students from CSV + individual entries
-  const totalStudents = csvStudentCount + individualEntries.length;
+  // Total students from CSV + individual entries
+  const totalStudents = csvData.length + individualEntries.length;
 
-  // ---------- Handlers for creation form ----------
-  const handleTrainingChange = (id, field, value) => {
-    setTrainingRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const addTrainingRow = () => {
-    setTrainingRows((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        course: "",
-        startDate: "",
-        endDate: "",
-        testDate: "",
-        invigilator: "",
-      },
-    ]);
-  };
-
-  const removeTrainingRow = (id) => {
-    setTrainingRows((prev) => prev.filter((row) => row.id !== id));
-  };
-
+  // ---------- Handlers for CSV parsing and editing ----------
   const handleCsvUpload = (file) => {
     setFileName(file.name);
-    // Demo: set a mock count of 38 students from CSV
-    setCsvStudentCount(38);
-    setShowCsvErrors(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const rows = text.split("\n").filter((r) => r.trim() !== "");
+      if (rows.length < 2) {
+        setShowCsvErrors(true);
+        return;
+      }
+      const headers = rows[0].split(",").map(h => h.trim());
+      const dataRows = rows.slice(1).map(row => {
+        const values = row.split(",");
+        const obj = {};
+        headers.forEach((h, idx) => {
+          obj[h] = values[idx] ? values[idx].trim() : "";
+        });
+        return obj;
+      });
+      setCsvHeaders(headers);
+      setCsvData(dataRows);
+      setCsvDrawerOpen(true);
+      setShowCsvErrors(false);
+    };
+    reader.readAsText(file);
   };
 
+  const handleCellChange = (rowIndex, field, value) => {
+    const updatedData = [...csvData];
+    updatedData[rowIndex][field] = value;
+    setCsvData(updatedData);
+  };
+
+  const handleAddRow = () => {
+    const newRow = {};
+    csvHeaders.forEach(header => {
+      newRow[header] = "";
+    });
+    setCsvData([...csvData, newRow]);
+  };
+
+  const handleDeleteRow = (rowIndex) => {
+    const updatedData = csvData.filter((_, idx) => idx !== rowIndex);
+    setCsvData(updatedData);
+  };
+
+  const handleSaveCsv = () => {
+    setCsvDrawerOpen(false);
+  };
+
+  const handleCloseCsvDrawer = () => {
+    setCsvDrawerOpen(false);
+  };
+
+  // ---------- Other handlers ----------
   const handleAddIndividualStudent = () => {
     if (newStudentName.trim() && newStudentEmail.trim() && newStudentPhone.trim()) {
       setIndividualEntries([
@@ -386,51 +424,107 @@ export default function BatchManagementDashboard() {
           classTeacher: newStudentClassTeacher,
         },
       ]);
-      // Reset form
       setNewStudentName("");
       setNewStudentEmail("");
       setNewStudentPhone("");
-      // Class/section/teacher revert to batch defaults (handled by useEffect)
       setIndividualDialogOpen(false);
     }
   };
 
+  // Helper to find existing batch with same class & section in current session
+  const findExistingBatch = () => {
+    const sessionBatches = trainingData[selectedSession] || [];
+    return sessionBatches.find(
+      (batch) => batch.className === selectedClass && batch.section === section
+    );
+  };
+
   const handleCreateBatch = () => {
-    const validTrainings = trainingRows
-      .filter((row) => row.course.trim() !== "")
-      .map((row) => ({
-        id: Date.now() + Math.random(),
-        course: row.course,
-        startDate: row.startDate,
-        endDate: row.endDate,
-        testDate: row.testDate,
-        invigilator: row.invigilator,
-        status: "Pending",
-        testStatus: "Pending",
-        trainingAttendanceMarked: `0/${totalStudents}`,
-        testAttendanceMarked: `0/${totalStudents}`,
+    const existingBatch = findExistingBatch();
+    const newTraining = trainingCourse
+      ? {
+          id: Date.now(),
+          course: trainingCourse,
+          startDate: trainingStartDate,
+          endDate: trainingEndDate,
+          testDate: trainingTestDate,
+          invigilator: trainingInvigilator,
+          status: "Pending",
+          testStatus: "Pending",
+          trainingAttendanceMarked: `0/${totalStudents}`,
+          testAttendanceMarked: `0/${totalStudents}`,
+        }
+      : null;
+
+    if (existingBatch) {
+      // Update existing batch
+      const updatedBatches = (trainingData[selectedSession] || []).map((batch) => {
+        if (batch.id === existingBatch.id) {
+          // Update total students and refresh attendance strings for all trainings
+          const updatedBatch = {
+            ...batch,
+            totalStudents,
+            trainings: batch.trainings.map((t) => ({
+              ...t,
+              trainingAttendanceMarked: `0/${totalStudents}`,
+              testAttendanceMarked: `0/${totalStudents}`,
+            })),
+          };
+
+          // Update or add training if new training fields provided
+          if (newTraining) {
+            const existingTrainingIndex = batch.trainings.findIndex(
+              (t) => t.course === newTraining.course
+            );
+            if (existingTrainingIndex !== -1) {
+              const updatedTrainings = [...batch.trainings];
+              updatedTrainings[existingTrainingIndex] = {
+                ...updatedTrainings[existingTrainingIndex],
+                ...newTraining,
+                id: updatedTrainings[existingTrainingIndex].id,
+              };
+              updatedBatch.trainings = updatedTrainings;
+            } else {
+              updatedBatch.trainings = [...batch.trainings, newTraining];
+            }
+          }
+          return updatedBatch;
+        }
+        return batch;
+      });
+
+      setTrainingData((prev) => ({
+        ...prev,
+        [selectedSession]: updatedBatches,
       }));
+    } else {
+      // Create new batch
+      const newBatch = {
+        id: `batch-${Date.now()}`,
+        batch: `Batch-${selectedClass}${section}-${Date.now()}`,
+        className: selectedClass,
+        section: section,
+        classTeacher: classTeacher,
+        totalStudents: totalStudents,
+        trainings: newTraining ? [newTraining] : [],
+      };
 
-    const newBatch = {
-      id: `batch-${Date.now()}`,
-      batch: `Batch-${selectedClass}${section}-${Date.now()}`, // auto-generated
-      className: selectedClass,
-      section: section,
-      classTeacher: classTeacher,
-      totalStudents: totalStudents,
-      trainings: validTrainings,
-    };
-
-    setTrainingData((prev) => ({
-      ...prev,
-      [selectedSession]: [...(prev[selectedSession] || []), newBatch],
-    }));
+      setTrainingData((prev) => ({
+        ...prev,
+        [selectedSession]: [...(prev[selectedSession] || []), newBatch],
+      }));
+    }
 
     // Reset form
     setFileName("");
-    setTrainingRows([]);
+    setTrainingCourse("");
+    setTrainingInvigilator("");
+    setTrainingStartDate("");
+    setTrainingEndDate("");
+    setTrainingTestDate("");
+    setCsvData([]);
+    setCsvHeaders([]);
     setShowCsvErrors(false);
-    setCsvStudentCount(0);
     setIndividualEntries([]);
   };
 
@@ -508,41 +602,71 @@ export default function BatchManagementDashboard() {
     handleCloseModal();
   };
 
+const handleDrawerSave = () => {
+  if (!editDrawerData) return;
+
+  setTrainingData((prev) => {
+    const updated = { ...prev };
+
+    updated[selectedSession] = updated[selectedSession].map((batch) => ({
+      ...batch,
+      trainings: batch.trainings.map((t) =>
+        t.id === editDrawerData.id
+          ? {
+              ...t,
+              ...editDrawerData,
+              trainingAttendanceMarked: t.trainingAttendanceMarked,
+              testAttendanceMarked: t.testAttendanceMarked,
+              status: t.status,
+              testStatus: t.testStatus,
+            }
+          : t
+      ),
+    }));
+
+    return updated;
+  });
+
+  setDrawerOpen(false);
+  setEditDrawerData(null);
+};
+
   const displayedBatches = trainingData[selectedSession] || [];
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedTraining, setSelectedTraining] = useState(null);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f8fafc", p: { xs: 2, md: 4 } }}>
       <Box sx={{ maxWidth: 1400, mx: "auto" }}>
-        {/* Header with title and session selector (outside any card) */}
+        {/* Header with title and session selector */}
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} sx={{ mb: 4 }}>
           <Box>
             <Stack direction="row" spacing={1.2} alignItems="center" mb={1}>
               <Groups color="primary" />
               <Typography variant="h5" fontWeight={700}>
-                Batch Management
+                Training Dashboard
               </Typography>
             </Stack>
             <Typography variant="body1" color="text.secondary" mb={2}>
               Create new batches and view existing trainings in one place.
             </Typography>
-             <FormControl sx={{ minWidth: 200 }} marginTop={8}>
-            <InputLabel id="session-select-label">Session</InputLabel>
-            <Select
-              labelId="session-select-label"
-              value={selectedSession}
-              label="Session"
-              onChange={(e) => setSelectedSession(e.target.value)}
-              sx={{ borderRadius: 2, bgcolor: "white" }}
-            >
-              {sessions.map((session) => (
-                <MenuItem key={session} value={session}>
-                  {session}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel id="session-select-label">Session</InputLabel>
+              <Select
+                labelId="session-select-label"
+                value={selectedSession}
+                label="Session"
+                onChange={(e) => setSelectedSession(e.target.value)}
+                sx={{ borderRadius: 2, bgcolor: "white" }}
+              >
+                {sessions.map((session) => (
+                  <MenuItem key={session} value={session}>
+                    {session}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
-         
         </Stack>
 
         {/* ---------- Create Batch Card ---------- */}
@@ -559,6 +683,7 @@ export default function BatchManagementDashboard() {
                   label="Class"
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
+                  variant="outlined"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -582,6 +707,7 @@ export default function BatchManagementDashboard() {
                   label="Section"
                   value={section}
                   onChange={(e) => setSection(e.target.value)}
+                  variant="outlined"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -605,6 +731,7 @@ export default function BatchManagementDashboard() {
                   label="Class Teacher"
                   value={classTeacher}
                   onChange={(e) => setClassTeacher(e.target.value)}
+                  variant="outlined"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -622,11 +749,97 @@ export default function BatchManagementDashboard() {
               </Grid>
 
               <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+  select
+  fullWidth
+  label="Course"
+  value={trainingCourse || ""}
+  onChange={(e) => setTrainingCourse(e.target.value)}
+  variant="outlined"
+  InputLabelProps={{ shrink: true }}
+  SelectProps={{ displayEmpty: true }}
+>
+  <MenuItem value="">
+    <em>Select Course</em>
+  </MenuItem>
+
+  {courses.map((c) => (
+    <MenuItem key={c} value={c}>
+      {c}
+    </MenuItem>
+  ))}
+</TextField>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                   <TextField
+  select
+  fullWidth
+  label="Invigilator"
+  value={trainingInvigilator || ""}
+  onChange={(e) => setTrainingInvigilator(e.target.value)}
+  disabled={!trainingCourse}
+  variant="outlined"
+  InputLabelProps={{ shrink: true }}
+  SelectProps={{ displayEmpty: true }}
+>
+  <MenuItem value="">
+    <em>Select Invigilator</em>
+  </MenuItem>
+
+  {invigilators.map((inv) => (
+    <MenuItem key={inv} value={inv}>
+      {inv}
+    </MenuItem>
+  ))}
+</TextField>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      type="date"
+                      label="Start Date"
+                      fullWidth
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                      value={trainingStartDate}
+                      onChange={(e) => setTrainingStartDate(e.target.value)}
+                      disabled={!trainingCourse}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      type="date"
+                      label="End Date"
+                      fullWidth
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                      value={trainingEndDate}
+                      onChange={(e) => setTrainingEndDate(e.target.value)}
+                      disabled={!trainingCourse}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      type="date"
+                      label="Test Date"
+                      fullWidth
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                      value={trainingTestDate}
+                      onChange={(e) => setTrainingTestDate(e.target.value)}
+                      disabled={!trainingCourse}
+                    />
+                  </Grid>
+                </Grid>
               </Grid>
 
-              <Grid item xs={12}>
-                <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+            
+                <Divider sx={{ my: 1 }} />
+              
+              <Box item xs={12}>
+               <Divider sx={{ my: 3 }} />
+                <Stack direction="row" spacing={2} alignItems="center"  sx={{ mb: 2 }}>
                   <Typography variant="h6" fontWeight={700}>
                     Student Data
                   </Typography>
@@ -637,9 +850,9 @@ export default function BatchManagementDashboard() {
                     icon={<Group />}
                   />
                 </Stack>
-              </Grid>
+            
 
-              <Grid item xs={12}>
+             
                 <Paper
                   variant="outlined"
                   sx={{
@@ -649,6 +862,7 @@ export default function BatchManagementDashboard() {
                     borderWidth: 2,
                   }}
                 >
+                  
                   <Stack spacing={2}>
                     {/* CSV Upload Section */}
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }} justifyContent="space-between">
@@ -657,7 +871,7 @@ export default function BatchManagementDashboard() {
                         <Box>
                           <Typography fontWeight={700}>Upload student CSV</Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Accepted format: .csv | Demo: sets count to 38.
+                            Accepted format: .csv | Editable table will open.
                           </Typography>
                         </Box>
                       </Stack>
@@ -699,6 +913,15 @@ export default function BatchManagementDashboard() {
                         <Typography variant="body2" fontWeight={600}>
                           {fileName}
                         </Typography>
+                        {csvData.length > 0 && (
+                          <IconButton
+                            size="small"
+                            onClick={() => setCsvDrawerOpen(true)}
+                            title="Edit CSV"
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        )}
                       </Box>
                     )}
 
@@ -716,57 +939,12 @@ export default function BatchManagementDashboard() {
                               icon={<ErrorOutline />}
                               sx={{ mb: 2, borderRadius: 3 }}
                             >
-                              3 rows failed during CSV validation. Please review the errors below and re-upload the corrected file.
+                              CSV upload failed. Please check the file format and try again.
                             </Alert>
-
-                            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
-                              <Table>
-                                <TableHead>
-                                  <TableRow>
-                                    <TableCell sx={{ fontWeight: 700 }}>Row #</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Student</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Field</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Error Type</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Message</TableCell>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {csvErrorRows.map((row) => (
-                                    <TableRow key={row.rowNumber} hover>
-                                      <TableCell>{row.rowNumber}</TableCell>
-                                      <TableCell>{row.studentName}</TableCell>
-                                      <TableCell>{row.field}</TableCell>
-                                      <TableCell>
-                                        <Chip
-                                          size="small"
-                                          label={row.errorType}
-                                          color="error"
-                                          variant="outlined"
-                                        />
-                                      </TableCell>
-                                      <TableCell>{row.message}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </TableContainer>
                           </Box>
                         </motion.div>
                       )}
                     </AnimatePresence>
-
-                    <Divider>or</Divider>
-
-                    {/* Individual Entry Button */}
-                    <Stack direction="row" justifyContent="center">
-                      <Button
-                        variant="outlined"
-                        startIcon={<PersonAdd />}
-                        onClick={() => setIndividualDialogOpen(true)}
-                      >
-                        Add Individual Student Entry
-                      </Button>
-                    </Stack>
 
                     {/* List of manually added students */}
                     {individualEntries.length > 0 && (
@@ -789,137 +967,24 @@ export default function BatchManagementDashboard() {
                         </List>
                       </Paper>
                     )}
+
                   </Stack>
                 </Paper>
+                  </Box>
               </Grid>
+
+             
 
               <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
-              </Grid>
-
-              {/* Training Rows */}
-              {trainingRows.length > 0 && (
-                <Grid item xs={12}>
-                  <Stack spacing={2}>
-                    {trainingRows.map((row, index) => (
-                      <Paper key={row.id} variant="outlined" sx={{ borderRadius: 4, p: 2 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                          <Typography fontWeight={700}>Training Row {index + 1}</Typography>
-                          <Tooltip title="Remove row">
-                            <span>
-                              <IconButton
-                                color="error"
-                                onClick={() => removeTrainingRow(row.id)}
-                              >
-                                <DeleteOutline />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </Box>
-                        <Grid container spacing={2} alignItems="center">
-                          <Grid item xs={12} md={3}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Course"
-                              value={row.course}
-                              onChange={(e) => handleTrainingChange(row.id, "course", e.target.value)}
-                            >
-                              {courses.map((item) => (
-                                <MenuItem key={item} value={item}>
-                                  {item}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          </Grid>
-
-                          <Grid item xs={12} md={2.25}>
-                            <TextField
-                              fullWidth
-                              type="date"
-                              label="Start Date"
-                              value={row.startDate}
-                              onChange={(e) => handleTrainingChange(row.id, "startDate", e.target.value)}
-                              InputLabelProps={{ shrink: true }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <CalendarMonth fontSize="small" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-
-                          <Grid item xs={12} md={2.25}>
-                            <TextField
-                              fullWidth
-                              type="date"
-                              label="End Date"
-                              value={row.endDate}
-                              onChange={(e) => handleTrainingChange(row.id, "endDate", e.target.value)}
-                              InputLabelProps={{ shrink: true }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <CalendarMonth fontSize="small" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-
-                          <Grid item xs={12} md={2.25}>
-                            <TextField
-                              fullWidth
-                              type="date"
-                              label="Test Date"
-                              value={row.testDate}
-                              onChange={(e) => handleTrainingChange(row.id, "testDate", e.target.value)}
-                              InputLabelProps={{ shrink: true }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <CalendarMonth fontSize="small" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-
-                          <Grid item xs={12} md={2.25}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Invigilator"
-                              value={row.invigilator}
-                              onChange={(e) => handleTrainingChange(row.id, "invigilator", e.target.value)}
-                            >
-                              {invigilators.map((item) => (
-                                <MenuItem key={item} value={item}>
-                                  {item}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          </Grid>
-                        </Grid>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </Grid>
-              )}
-
-           
-            </Grid>
-               <Grid item xs={12} mt={2}>
-                <Stack direction="row" spacing={2} justifyContent="flex-center">
-                
+                <Stack direction="row" spacing={2} justifyContent="flex-end">
                   <Button variant="contained" size="large" startIcon={<Groups />} onClick={handleCreateBatch}>
                     Create Batch
                   </Button>
                 </Stack>
               </Grid>
+          
           </Card>
+          
         </MotionBox>
 
         {/* ---------- Batches Card ---------- */}
@@ -1042,6 +1107,7 @@ export default function BatchManagementDashboard() {
                                 <TableCell><strong>Test Status</strong></TableCell>
                                 <TableCell><strong>Training Attendance</strong></TableCell>
                                 <TableCell><strong>Test Attendance</strong></TableCell>
+                                <TableCell><strong>Download Course</strong></TableCell>
                                 <TableCell><strong>Actions</strong></TableCell>
                               </TableRow>
                             </TableHead>
@@ -1064,10 +1130,31 @@ export default function BatchManagementDashboard() {
                                     <TableCell>{training.trainingAttendanceMarked}</TableCell>
                                     <TableCell>{training.testAttendanceMarked}</TableCell>
                                     <TableCell>
-                                      <IconButton
+                                      <Button
                                         size="small"
-                                        color="primary"
-                                        onClick={() => handleOpenEditModal(row, training)}
+                                        variant="outlined"
+                                        onClick={() => {
+                                          const blob = new Blob(
+                                            [`Course: ${training.course}`],
+                                            { type: "text/plain" }
+                                          );
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement("a");
+                                          a.href = url;
+                                          a.download = `${training.course}.txt`;
+                                          a.click();
+                                        }}
+                                      >
+                                        Download
+                                      </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                      <IconButton
+                                        onClick={() => {
+                                          setSelectedTraining(training);
+                                          setEditDrawerData({ ...training });
+                                          setDrawerOpen(true);
+                                        }}
                                       >
                                         <EditIcon fontSize="small" />
                                       </IconButton>
@@ -1076,7 +1163,7 @@ export default function BatchManagementDashboard() {
                                 ))
                               ) : (
                                 <TableRow>
-                                  <TableCell colSpan={9} align="center" sx={{ py: 3 }}>
+                                  <TableCell colSpan={10} align="center" sx={{ py: 3 }}>
                                     <Typography color="text.secondary">No trainings added yet. Click "Add Training" to create one.</Typography>
                                   </TableCell>
                                 </TableRow>
@@ -1122,6 +1209,7 @@ export default function BatchManagementDashboard() {
                 onChange={handleFormChange("course")}
                 fullWidth
                 required
+                variant="outlined"
               >
                 {courses.map((course) => (
                   <MenuItem key={course} value={course}>
@@ -1137,6 +1225,7 @@ export default function BatchManagementDashboard() {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 required
+                variant="outlined"
               />
               <TextField
                 label="End Date"
@@ -1146,6 +1235,7 @@ export default function BatchManagementDashboard() {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 required
+                variant="outlined"
               />
               <TextField
                 label="Test Date"
@@ -1155,6 +1245,7 @@ export default function BatchManagementDashboard() {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 required
+                variant="outlined"
               />
               <TextField
                 select
@@ -1163,6 +1254,7 @@ export default function BatchManagementDashboard() {
                 onChange={handleFormChange("invigilator")}
                 fullWidth
                 required
+                variant="outlined"
               >
                 {invigilators.map((inv) => (
                   <MenuItem key={inv} value={inv}>
@@ -1195,6 +1287,7 @@ export default function BatchManagementDashboard() {
                 value={newStudentName}
                 onChange={(e) => setNewStudentName(e.target.value)}
                 required
+                variant="outlined"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -1210,6 +1303,7 @@ export default function BatchManagementDashboard() {
                 value={newStudentEmail}
                 onChange={(e) => setNewStudentEmail(e.target.value)}
                 required
+                variant="outlined"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -1224,6 +1318,7 @@ export default function BatchManagementDashboard() {
                 value={newStudentPhone}
                 onChange={(e) => setNewStudentPhone(e.target.value)}
                 required
+                variant="outlined"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -1232,8 +1327,6 @@ export default function BatchManagementDashboard() {
                   ),
                 }}
               />
-             
-          
             </Stack>
           </DialogContent>
           <DialogActions>
@@ -1247,6 +1340,163 @@ export default function BatchManagementDashboard() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* CSV Editor Drawer */}
+        <Drawer anchor="right" open={csvDrawerOpen} onClose={handleCloseCsvDrawer} PaperProps={{ sx: { width: { xs: '100%', sm: '80%', md: '70%' } } }}>
+          <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">Edit CSV Data</Typography>
+              <IconButton onClick={handleCloseCsvDrawer}>
+                <Close />
+              </IconButton>
+            </Stack>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 180px)' }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      {csvHeaders.map((header) => (
+                        <TableCell key={header} sx={{ fontWeight: 700, bgcolor: 'background.paper' }}>
+                          {header}
+                        </TableCell>
+                      ))}
+                      <TableCell sx={{ bgcolor: 'background.paper' }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {csvData.map((row, rowIndex) => (
+                      <TableRow key={rowIndex}>
+                        {csvHeaders.map((header) => (
+                          <TableCell key={header}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              value={row[header] || ''}
+                              onChange={(e) => handleCellChange(rowIndex, header, e.target.value)}
+                              variant="standard"
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <IconButton color="error" onClick={() => handleDeleteRow(rowIndex)}>
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={csvHeaders.length + 1} align="center">
+                        <Button startIcon={<Add />} onClick={handleAddRow} variant="text">
+                          Add Row
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+            <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
+              <Button onClick={handleCloseCsvDrawer} variant="outlined">Cancel</Button>
+              <Button onClick={handleSaveCsv} variant="contained" startIcon={<Save />}>Save</Button>
+            </Stack>
+          </Box>
+        </Drawer>
+
+        {/* Edit Training Drawer */}
+     <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+  <Box sx={{ width: 350, p: 3 }}>
+    <Typography variant="h6" mb={2}>
+      Edit Training
+    </Typography>
+
+    {editDrawerData && (
+      <Stack spacing={2}>
+        <TextField
+          fullWidth
+          label="Course"
+          value={editDrawerData.course || ""}
+          onChange={(e) =>
+            setEditDrawerData({
+              ...editDrawerData,
+              course: e.target.value,
+            })
+          }
+          variant="outlined"
+        />
+
+        <TextField
+          fullWidth
+          type="date"
+          label="Start Date"
+          InputLabelProps={{ shrink: true }}
+          value={editDrawerData.startDate || ""}
+          onChange={(e) =>
+            setEditDrawerData({
+              ...editDrawerData,
+              startDate: e.target.value,
+            })
+          }
+          variant="outlined"
+        />
+
+        <TextField
+          fullWidth
+          type="date"
+          label="End Date"
+          InputLabelProps={{ shrink: true }}
+          value={editDrawerData.endDate || ""}
+          onChange={(e) =>
+            setEditDrawerData({
+              ...editDrawerData,
+              endDate: e.target.value,
+            })
+          }
+          variant="outlined"
+        />
+
+        <TextField
+          fullWidth
+          type="date"
+          label="Test Date"
+          InputLabelProps={{ shrink: true }}
+          value={editDrawerData.testDate || ""}
+          onChange={(e) =>
+            setEditDrawerData({
+              ...editDrawerData,
+              testDate: e.target.value,
+            })
+          }
+          variant="outlined"
+        />
+
+        <TextField
+          select
+          fullWidth
+          label="Invigilator"
+          value={editDrawerData.invigilator || ""}
+          onChange={(e) =>
+            setEditDrawerData({
+              ...editDrawerData,
+              invigilator: e.target.value,
+            })
+          }
+          variant="outlined"
+        >
+          {invigilators.map((inv) => (
+            <MenuItem key={inv} value={inv}>
+              {inv}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Button variant="contained" fullWidth onClick={handleDrawerSave}>
+          Save Changes
+        </Button>
+      </Stack>
+    )}
+  </Box>
+</Drawer>
       </Box>
     </Box>
   );
