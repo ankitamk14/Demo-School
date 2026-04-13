@@ -173,7 +173,8 @@ export default function VStudentImport() {
     formData.append("file", audioBlob, "voice-input.webm");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/students/voice-upload/", {
+    //   const response = await fetch("http://127.0.0.1:8000/api/v1/students/voice-upload/", {
+      const response = await fetch("https://ers.spoken-tutorial.org/api/v1/students/voice-upload/", {
         method: "POST",
         body: formData,
       });
