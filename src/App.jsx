@@ -1,48 +1,70 @@
 // import './App.css'
 
-import { Routes, Route, Link } from "react-router";
+// import { Routes, Route, Link } from "react-router";
 import BatchCreationInterface from "./BatchCreationInterface"
 import TrainingTakenInterface from "./TrainingTakenInterface"
 import StudentTraining  from "./StudentTraining"
-import { Container, Typography } from "@mui/material";
+// import { Container, Typography } from "@mui/material";
 import VoiceStudentImport from "./VoiceStudentImport";
 import VStudentImport from "./VStudentImport";
 
 
-function Home() {
-  return <h2>Home Page</h2>;
-}
+import { Container, Typography, Box, Button } from "@mui/material";
+import { NavLink, Route, Routes } from "react-router-dom";
 
+const navButtonSx = {
+  textTransform: "none",
+  borderRadius: 2,
+  px: 2,
+  py: 1,
+  color: "text.primary",
+  "&.active": {
+    backgroundColor: "primary.main",
+    color: "#fff",
+  },
+  "&:hover": {
+    backgroundColor: "primary.light",
+    color: "#fff",
+  },
+};
 
-function App() {
-
-
+export default function App() {
   return (
-    <Container>
-       <nav>
-        <Link to="/"><Typography variant="small">Batch Training  </Typography></Link> | 
-        <Link to="/student-training"><Typography variant="small">   Student Training</Typography></Link>
-        
-        <Link to="/voice-csv-upload"><Typography variant="small">   Voice upload</Typography></Link>
-        {/* <Link to="/voice-csv-upload"><Typography variant="small">   Voice upload</Typography></Link> */}
+    <Container maxWidth="lg">
+      <Box
+        component="nav"
+        sx={{
+          display: "flex",
+          gap: 2,
+          alignItems: "center",
+          p: 2,
+          mt: 2,
+          mb: 4,
+          border: "1px solid",
+          borderColor: "grey.300",
+          borderRadius: 2,
+          bgcolor: "background.paper",
+          boxShadow: 1,
+        }}
+      >
+        <Button component={NavLink} to="/" sx={navButtonSx}>
+          <Typography variant="body2">CSV Upload - Speech to Text</Typography>
+        </Button>
 
+        <Button component={NavLink} to="/batch-training" sx={navButtonSx}>
+          <Typography variant="body2">Batch Training</Typography>
+        </Button>
 
-        
-      </nav>
-      {/* <BatchCreationInterface/> */}
-      {/* <TrainingTakenInterface batches={batches}/> */}
-      
-      
+        <Button component={NavLink} to="/student-training" sx={navButtonSx}>
+          <Typography variant="body2">Student Training</Typography>
+        </Button>
+      </Box>
+
       <Routes>
-        <Route path="/" element={<BatchCreationInterface/>}></Route>
-        <Route path="/student-training" element={<StudentTraining/>}></Route>
-        {/* <Route path="/voice-csv-upload" element={<VoiceStudentImport/>}></Route> */}
-        <Route path="/voice-csv-upload" element={<VStudentImport/>}></Route>
-        
+        <Route path="/" element={<VStudentImport />} />
+        <Route path="/batch-training" element={<BatchCreationInterface />} />
+        <Route path="/student-training" element={<StudentTraining />} />
       </Routes>
     </Container>
-
-  )
+  );
 }
-
-export default App
